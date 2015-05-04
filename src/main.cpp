@@ -132,6 +132,34 @@ vector<int> kpp(int N, matrizDist matriz){
     return sols;
 }
 
+/**
+ * Calcula la distorsion de una solucion
+ * @param dataPoints
+ * @param N
+ * @param matriz
+ * @return 
+ */
+dist calcular_dist_solucion(pointArray dataPoints, int N, matrizDist matriz){
+    dist res = 0;
+    for(int i = 0; i < N; i++){
+        res += distancia(i, dataPoints[i]->centro, matriz);
+    }
+    return res;
+}
+
+/**
+ * 
+ 
+vector< vector<int> > calcular_vecindad(vector<int> sols){
+    vector< vector<int> >vecindad;
+    for(int i = 0; i < K; i++){
+        vector<int> vecino;
+        vector
+    }
+
+}
+*/
+
 /*
  * 
  */
@@ -210,6 +238,7 @@ int main(int argc, char** argv) {
     for (int i=0; i < N; i++) 
         cout << "punto n°" << i << " centro: " << dataPoints[i]->centro << endl;
     
-
+    cout << "distorsion solucion: " << calcular_dist_solucion(dataPoints, N, matriz) << endl;
+    
     return 0;
 }
