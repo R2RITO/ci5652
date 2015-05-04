@@ -147,18 +147,41 @@ dist calcular_dist_solucion(pointArray dataPoints, int N, matrizDist matriz){
     return res;
 }
 
-/**
- * 
+
  
-vector< vector<int> > calcular_vecindad(vector<int> sols){
-    vector< vector<int> >vecindad;
+pair<vector<int>, dist>  calcular_mejor_vecindad(pointArray dataPoints, vector<int> sols, int N, matrizDist matriz){
+    int iCenter;
+    bool repetido;
+    vector<int> mejorVecino;
+    srand(time(NULL));
+    double min_d = DBL_MAX;
+    
     for(int i = 0; i < K; i++){
         vector<int> vecino;
-        vector
+        vecino = sols;
+        repetido = true;
+        while(repetido){
+            iCenter = rand() % N;
+            for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++)
+                if (*it == iCenter)
+                    continue;
+            repetido = false;
+        }
+        vecino[i] = iCenter;
+        
+        calcular_centros_mas_cercanos(dataPoints, vecino, matriz, N);
+        double d = calcular_dist_solucion(dataPoints, N, matriz);
+        if (d < min_d){
+            min_d = d;
+            mejorVecino = vecino;           
+        }
     }
-
+    pair< vector<int>, dist > result;
+    result.first = mejorVecino;
+    result.second = min_d;
+    return result;
 }
-*/
+
 
 /*
  * 
@@ -240,5 +263,13 @@ int main(int argc, char** argv) {
     
     cout << "distorsion solucion: " << calcular_dist_solucion(dataPoints, N, matriz) << endl;
     
+    pair <vector<int>, dist> pr = calcular_mejor_vecindad(dataPoints, sols, N, matriz);
+    vector<int> mejorVecino = pr.first;
+    dist mejorVecinoDist = pr.second;
+    
+    cout << "mejor vecino: ";
+    for (int i=0; i < K-1; i++) 
+        cout << mejorVecino[i] <<  "; " ;
+    cout << endl << "y su distorsion: " << mejorVecinoDist;
     return 0;
 }
