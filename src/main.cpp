@@ -25,7 +25,9 @@ typedef vector<point> pointArray; // arreglo de puntos
 
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
-#define K 5
+#define K               5
+#define LIM_ITER        25
+#define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 
 /* 
@@ -152,9 +154,9 @@ dist calcular_dist_solucion(pointArray dataPoints, int N, matrizDist matriz){
 pair<vector<int>, dist>  calcular_mejor_vecindad(pointArray dataPoints, vector<int> sols, int N, matrizDist matriz){
     int iCenter;
     bool repetido;
-    vector<int> mejorVecino;
+    vector<int> mejorVecino = sols;
     srand(time(NULL));
-    double min_d = DBL_MAX;
+    double min_d = calcular_dist_solucion(dataPoints, N, matriz);
     
     for(int i = 0; i < K; i++){
         vector<int> vecino;
@@ -182,6 +184,17 @@ pair<vector<int>, dist>  calcular_mejor_vecindad(pointArray dataPoints, vector<i
     return result;
 }
 
+/* Determina si hubo convergencia */
+int convergencia(dist d1, dist d2) {
+
+    if (labs(d1-d2) < EPSILON) {
+        return 1;
+    } else {
+        return 0;
+    }
+
+}
+
 
 /*
  * 
@@ -197,7 +210,6 @@ int main(int argc, char** argv) {
     while( getline(cin, lineData)) {
         point p = new point_t();
         p->coords.clear();
-        cout << "size:" << p->coords.size();
         stringstream lineStream(lineData);
         while(getline(lineStream, subLineData, ',')){ // Dividimos por comas
             coord num = atof(subLineData.c_str());
@@ -208,21 +220,6 @@ int main(int argc, char** argv) {
     
     N = dataPoints.size();
     dim = (dataPoints[0]->coords).size();
-    
-    cout << "Numero de datos: " << N << endl << "Dimensiones: " << dim << endl;
-
-    /*
-    for(int i=0; i < dataPoints.size(); i++){
-        KMpoint point = dataPoints[i];
-        for(int j=0; j < point.size(); j++)
-            cout << point[j] << ", " ;
-        cout << endl;
-                   
-    }*/
-
-    cout << "Distancia punto 98 y punto 99 -> " << kmDist(dim,
-            dataPoints[98],
-            dataPoints[99]) << endl;
 
     matrizDist matriz;
 
@@ -234,42 +231,39 @@ int main(int argc, char** argv) {
         }
         matriz.push_back(columna);
     }
-    
-    cout << "Distancia punto 98 y punto 99 -> " << matriz[98][0] << endl;
 
     // Vector de soluciones, posición de cada centro en el arreglo de puntos.
     vector<int> sols;
     sols.clear();
-
-    /* Elegimos aleatoriamente la solucion inicial */
-    //srand(time(NULL)); 
-    //for (int i=0; i < K-1; i++) 
-     //   sols.push_back(rand() % N);
-    
     
     // Generar solucion inicial utilizando metodo k-means++
-    sols = kpp(N, matriz);   
-    
-    /* Calculamos los centros más cercanos de cada punto */
+    sols = kpp(N, matriz); 
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
-    
-    cout << "solucion inicial: ";
-    for (int i=0; i < K-1; i++) 
+    dist distorsionActual = calcular_dist_solucion(dataPoints, N, matriz);
+    dist mejorVecinoDist = 0;
+
+    // Ejecutar local search 
+    int count;
+    for (count = 0; count < LIM_ITER; count++) {
+        /* Calculamos los centros más cercanos de cada punto */
+        calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);         
+        pair <vector<int>, dist> pr = calcular_mejor_vecindad(dataPoints, sols, N, matriz);
+        vector<int> mejorVecino = pr.first;
+        dist mejorVecinoDist = pr.second;
+
+        if (convergencia(distorsionActual,mejorVecinoDist))
+            break;
+
+        if (mejorVecinoDist < distorsionActual) {
+            sols = mejorVecino;
+            distorsionActual = mejorVecinoDist;
+        }
+    }
+
+    cout << "Solucion: ";
+    for (int i=0; i < K; i++) 
         cout << sols[i] <<  "; " ;
-    
     cout << endl;
-    for (int i=0; i < N; i++) 
-        cout << "punto n°" << i << " centro: " << dataPoints[i]->centro << endl;
     
-    cout << "distorsion solucion: " << calcular_dist_solucion(dataPoints, N, matriz) << endl;
-    
-    pair <vector<int>, dist> pr = calcular_mejor_vecindad(dataPoints, sols, N, matriz);
-    vector<int> mejorVecino = pr.first;
-    dist mejorVecinoDist = pr.second;
-    
-    cout << "mejor vecino: ";
-    for (int i=0; i < K-1; i++) 
-        cout << mejorVecino[i] <<  "; " ;
-    cout << endl << "y su distorsion: " << mejorVecinoDist;
     return 0;
 }
