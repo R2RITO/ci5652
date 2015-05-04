@@ -13,40 +13,39 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
-#include <climits>
 #include <map>
 
 using namespace std;
 
-typedef double KMcoord; //coordenada
+typedef double coord; //coordenada
 typedef double dist;    // Distancia entre dos puntos
 typedef vector< vector<dist> > matrizDist; // Matriz de distancia entre puntos.
-typedef vector<KMcoord> KMpoint; // punto
-typedef vector<KMpoint> KMpointArray; // arreglo de puntos
+typedef struct { vector<coord> coords; int centro; } point_t, *point; // punto
+typedef vector<point> pointArray; // arreglo de puntos
 
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
 #define K 5
+#define DBL_MAX         1.7976931348623158e+308
 
 /* 
  * Calcula la distancia euclideana de 2 puntos
  * 
  */
-double kmDist(			// interpoint squared distance
+dist kmDist(			// interpoint squared distance
     int			dim,
-    KMpoint		p,
-    KMpoint		q)
+    point		p,
+    point		q)
 {
     int d;
-    KMcoord diff;
-    KMcoord dist;
+    double diff;
+    dist distance = 0;
 
-    dist = 0;
     for (d = 0; d < dim; d++) {
-	diff = p[d] - q[d];
-	dist = KM_SUM(dist, KM_POW(diff));
+	diff = (p->coords)[d] - (q->coords)[d];
+	distance = KM_SUM(distance, KM_POW(diff));
     }
-    return dist;
+    return distance;
 }
 
 /* Busca en la matriz la distancia entre dos puntos */
@@ -61,6 +60,79 @@ dist distancia(int i, int j, matrizDist matriz) {
 }
 
 /*
+ * Dado un punto, calcula su centro más cercano.
+ * @param p arregls de puntos
+ *        centros vector solucion
+ *        matriz Matriz de distancias
+ *        N numero de puntos
+ */
+void calcular_centros_mas_cercanos(pointArray points, vector<int> centros,  matrizDist matriz, int N){
+      
+    for(int i = 0; i < N; i++ ){
+        double min_d = DBL_MAX;
+        for(int j = 0; j < K-1; j++){
+            dist dista = distancia(i, centros[j], matriz);
+            if(min_d > dista){
+                points[i]->centro = centros[j];
+                min_d = dista;
+            }
+        }
+    }
+}
+
+/**
+ * Funcion que genera una solucion inicial usando el metodo de k-means
+ * @param N numero de puntos
+ * @param sols vector solucion
+ * @param matriz 
+ */
+vector<int> kpp(int N, matrizDist matriz){
+ 
+    double pesoTotal = 0;  
+    dist minDist, candidato;
+    vector<int> sols;
+    
+    srand(time(NULL));
+
+    sols.push_back(rand() % N);
+    /* 
+        Se guarda un mapa de distancias -> indice del punto, en el que 
+        se tiene el "techo" de la probabilidad correspondiente a cada punto
+        de ser el nuevo peso
+    */
+    
+    for (int i=0; i < K-1; i++) {
+
+        map<double, int> pesos;
+        
+        for (int j=0; j < N; j++) {
+
+            minDist = DBL_MAX;
+            // Obtener la distancia entre el punto j y su centro mas cercano.
+            for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++) {
+                candidato = distancia((*it),j,matriz);
+                minDist = (candidato < minDist) ? candidato : minDist;
+            }
+
+            // Guardar en el vector de pesos el nuevo punto.
+            // Si la distancia es 0, quiere decir que es el mismo punto, ignorar.
+            if (minDist>0) {
+                // Acumular el total del peso
+                pesoTotal += minDist;
+                pesos[pesoTotal] = j;
+
+            }
+        }
+        // Generar un numero entre 0 y 1 que representa el nuevo centro.
+        // Buscar en el mapa este numero, y agregarlo a la lista de centros.
+        double rnd = ((double) rand() / RAND_MAX);
+        sols.push_back(pesos.upper_bound(rnd*pesoTotal)->second);
+
+    }
+    return sols;
+}
+
+/*
  * 
  */
 int main(int argc, char** argv) {
@@ -69,20 +141,22 @@ int main(int argc, char** argv) {
     int dim = 0, N = 0;
     string lineData; 
     string subLineData;
-    KMpointArray dataPoints; 
+    pointArray dataPoints; 
     
     while( getline(cin, lineData)) {
-        KMpoint p;
+        point p = new point_t();
+        p->coords.clear();
+        cout << "size:" << p->coords.size();
         stringstream lineStream(lineData);
-        while(getline(lineStream, subLineData, ',')){ // Dividimos por commas
-            KMcoord num = atof(subLineData.c_str());
-            p.push_back(num);          
+        while(getline(lineStream, subLineData, ',')){ // Dividimos por comas
+            coord num = atof(subLineData.c_str());
+            p->coords.push_back(num); 
         }
         dataPoints.push_back(p);
     }
     
     N = dataPoints.size();
-    dim = dataPoints[0].size();
+    dim = (dataPoints[0]->coords).size();
     
     cout << "Numero de datos: " << N << endl << "Dimensiones: " << dim << endl;
 
@@ -102,12 +176,6 @@ int main(int argc, char** argv) {
     matrizDist matriz;
 
     // Llenar la matriz de distancias.
-    /*
-        Forma de leer la matriz:
-        distancia entre i y j con i < j
-        matriz[i][j-i-1]
-    */
-
     for (int i=0; i < N-1; i++) {
         vector<dist> columna;        
         for (int j=i+1; j < N; j++) {
@@ -118,59 +186,30 @@ int main(int argc, char** argv) {
     
     cout << "Distancia punto 98 y punto 99 -> " << matriz[98][0] << endl;
 
-    // Vector de soluciones, posición en el arreglo.
+    // Vector de soluciones, posición de cada centro en el arreglo de puntos.
     vector<int> sols;
+    sols.clear();
 
+    /* Elegimos aleatoriamente la solucion inicial */
+    //srand(time(NULL)); 
+    //for (int i=0; i < K-1; i++) 
+     //   sols.push_back(rand() % N);
+    
+    
     // Generar solucion inicial utilizando metodo k-means++
-    double pesoTotal = 0;  
-    dist minDist, candidato;
-  
-    srand(time(NULL));
-
-    sols.push_back(rand() % N);
-
-    /* 
-        Se guarda un mapa de distancias -> indice del punto, en el que 
-        se tiene el "techo" de la probabilidad correspondiente a cada punto
-        de ser el nuevo peso
-    */
+    sols = kpp(N, matriz);   
     
-    for (int i=0; i < K-1; i++) {
-
-        map<double, int> pesos;
-        
-        for (int j=0; j < N; j++) {
-
-            minDist = LONG_MAX;
-            // Obtener la distancia entre el punto j y su centro mas cercano.
-            for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++) {
-                candidato = distancia((*it),j,matriz);
-                minDist = (candidato < minDist) ? candidato : minDist;
-            }
-
-            // Guardar en el vector de pesos el nuevo punto.
-            // Si la distancia es 0, quiere decir que es el mismo punto, ignorar.
-            if (minDist>0) {
-                // Acumular el total del peso
-                pesoTotal += minDist;
-                pesos[pesoTotal] = j;
-
-            }
-        }
-
-        // Generar un numero entre 0 y 1 que representa el nuevo centro.
-        // Buscar en el mapa este numero, y agregarlo a la lista de centros.
-        double rnd = ((double) rand() / RAND_MAX);
-        sols.push_back(pesos.upper_bound(rnd*pesoTotal)->second);
-
-    }
+    /* Calculamos los centros más cercanos de cada punto */
+    calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
     
-
-    for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++) {
-        cout << (*it) << " ";
-    }
+    cout << "solucion inicial: ";
+    for (int i=0; i < K-1; i++) 
+        cout << sols[i] <<  "; " ;
+    
     cout << endl;
+    for (int i=0; i < N; i++) 
+        cout << "punto n°" << i << " centro: " << dataPoints[i]->centro << endl;
+    
 
     return 0;
 }
-
