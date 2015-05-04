@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdio.h>
+#include <climits>
+#include <map>
 
 using namespace std;
 
@@ -45,6 +47,17 @@ double kmDist(			// interpoint squared distance
 	dist = KM_SUM(dist, KM_POW(diff));
     }
     return dist;
+}
+
+/* Busca en la matriz la distancia entre dos puntos */
+dist distancia(int i, int j, matrizDist matriz) {
+    if (i < j) {
+        return matriz[i][j-i-1]; 
+    } else if (i == j) {
+        return 0;
+    } else {
+        return matriz[j][i-j-1];
+    }
 }
 
 /*
@@ -89,6 +102,12 @@ int main(int argc, char** argv) {
     matrizDist matriz;
 
     // Llenar la matriz de distancias.
+    /*
+        Forma de leer la matriz:
+        distancia entre i y j con i < j
+        matriz[i][j-i-1]
+    */
+
     for (int i=0; i < N-1; i++) {
         vector<dist> columna;        
         for (int j=i+1; j < N; j++) {
@@ -103,25 +122,54 @@ int main(int argc, char** argv) {
     vector<int> sols;
 
     // Generar solucion inicial utilizando metodo k-means++
+    double pesoTotal = 0;  
+    dist minDist, candidato;
+  
     srand(time(NULL));
 
     sols.push_back(rand() % N);
 
+    /* 
+        Se guarda un mapa de distancias -> indice del punto, en el que 
+        se tiene el "techo" de la probabilidad correspondiente a cada punto
+        de ser el nuevo peso
+    */
+    
     for (int i=0; i < K-1; i++) {
-        cout << "";
+
+        map<double, int> pesos;
+        
+        for (int j=0; j < N; j++) {
+
+            minDist = LONG_MAX;
+            // Obtener la distancia entre el punto j y su centro mas cercano.
+            for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++) {
+                candidato = distancia((*it),j,matriz);
+                minDist = (candidato < minDist) ? candidato : minDist;
+            }
+
+            // Guardar en el vector de pesos el nuevo punto.
+            // Si la distancia es 0, quiere decir que es el mismo punto, ignorar.
+            if (minDist>0) {
+                // Acumular el total del peso
+                pesoTotal += minDist;
+                pesos[pesoTotal] = j;
+
+            }
+        }
+
+        // Generar un numero entre 0 y 1 que representa el nuevo centro.
+        // Buscar en el mapa este numero, y agregarlo a la lista de centros.
+        double rnd = ((double) rand() / RAND_MAX);
+        sols.push_back(pesos.upper_bound(rnd*pesoTotal)->second);
+
     }
     
 
-
-
-
-
-
-
-
-
-
-
+    for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++) {
+        cout << (*it) << " ";
+    }
+    cout << endl;
 
     return 0;
 }
