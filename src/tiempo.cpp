@@ -9,7 +9,7 @@
 #include <map>
 #include <sys/time.h>
 
-#define NUM_ITER 10
+#define NUM_ITER 10 
 
 using namespace std;
 
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 
         gettimeofday(&startTV, NULL); 
 
-        std::system("./a.out < part.txt");
+        std::system("./main < iris.data.txt");
 
         gettimeofday(&endTV, NULL); 
 

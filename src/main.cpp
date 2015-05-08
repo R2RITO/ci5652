@@ -1,6 +1,7 @@
 /* 
  * File:   main.cpp
- * Author: franklin
+ * Authors: Artuto Voltattorni
+ *          Franklin Padilla
  *
  * Created on May 2, 2015, 2:44 PM
  */
@@ -25,10 +26,12 @@ typedef vector<point> pointArray; // arreglo de puntos
 
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
-#define K               5
-#define LIM_ITER        25
+#define K               3 
+#define LIM_ITER        100
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
+#define loop(n) for(int i =0; i < n; i++) 
+#define METODO_SOL_INI 1 // 0 aleatorio, 1 kmeans++
 
 /* 
  * Calcula la distancia euclideana de 2 puntos
@@ -93,11 +96,11 @@ vector<int> kpp(int N, matrizDist matriz){
     double pesoTotal = 0;  
     dist minDist, candidato;
     vector<int> sols;
-    
+    cout << "Método para calcular solución inicial: k-means++" << endl; 
     srand(time(NULL));
 
     sols.push_back(rand() % N);
-    /* 
+    /* #define loop(n) for(int ii = 0; ii < n; ++ ii)
         Se guarda un mapa de distancias -> indice del punto, en el que 
         se tiene el "techo" de la probabilidad correspondiente a cada punto
         de ser el nuevo peso
@@ -235,12 +238,31 @@ int main(int argc, char** argv) {
     // Vector de soluciones, posición de cada centro en el arreglo de puntos.
     vector<int> sols;
     sols.clear();
+
+    //cálculo solución inicial
+    if (METODO_SOL_INI)
+       sols = kpp(N, matriz); // kmeans++ 
+    else {
+      cout << "Método para calcular solución inicial: k-means++" << endl; 
+      srand(time(NULL)); // aleatorio
+      loop(K)
+        sols.push_back(rand() % N);
+    }
+       
     
-    // Generar solucion inicial utilizando metodo k-means++
-    sols = kpp(N, matriz); 
+    
+    // Generar solucion inicial utilizando metodo k-means++(opcional)
+     
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
     dist distorsionActual = calcular_dist_solucion(dataPoints, N, matriz);
+    dist distorsionInicial = distorsionActual;
     dist mejorVecinoDist = 0;
+    
+    cout << "Solucion inicial: " ;
+    loop(K)
+      cout << sols[i] << "; ";
+    cout << endl << "Distorsion inicial: " << distorsionInicial << endl;
+
 
     // Ejecutar local search 
     int count;
@@ -251,19 +273,22 @@ int main(int argc, char** argv) {
         vector<int> mejorVecino = pr.first;
         dist mejorVecinoDist = pr.second;
 
-        if (convergencia(distorsionActual,mejorVecinoDist))
-            break;
+        /* if (convergencia(distorsionActual,mejorVecinoDist)){ */
+        /*     break; */
+        /* } */
 
         if (mejorVecinoDist < distorsionActual) {
             sols = mejorVecino;
             distorsionActual = mejorVecinoDist;
         }
     }
+    cout << "Numero iteraciones en el LS: " << count << endl;
 
     cout << "Solucion: ";
-    for (int i=0; i < K; i++) 
-        cout << sols[i] <<  "; " ;
-    cout << endl;
-    
+    loop(K)
+      cout << sols[i] <<  "; " ;
+    cout << endl << "Distorsión Final: " << distorsionActual << endl;
+    cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distorsionInicial-distorsionActual)/distorsionInicial << endl;
+
     return 0;
 }
