@@ -31,7 +31,7 @@ typedef vector<point> pointArray; // arreglo de puntos
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 #define loop(n) for(int i =0; i < n; i++) 
-#define METODO_SOL_INI 1 // 0 aleatorio, 1 kmeans++
+#define METODO_SOL_INI 0 // 0 aleatorio, 1 kmeans++
 
 /* 
  * Calcula la distancia euclideana de 2 puntos
@@ -52,6 +52,7 @@ dist kmDist(			// interpoint squared distance
     }
     return distance;
 }
+
 
 /* Busca en la matriz la distancia entre dos puntos */
 dist distancia(int i, int j, matrizDist matriz) {
@@ -164,13 +165,15 @@ pair<vector<int>, dist>  calcular_mejor_vecindad(pointArray dataPoints, vector<i
     for(int i = 0; i < K; i++){
         vector<int> vecino;
         vecino = sols;
-        repetido = true;
-        while(repetido){
-            iCenter = rand() % N;
-            for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++)
-                if (*it == iCenter)
-                    continue;
-            repetido = false;
+        while(1){
+          repetido = false;
+          iCenter = rand() % N;
+          for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++)
+                if (*it == iCenter){
+                  repetido = true;
+                  break;
+                }
+          if(!repetido) break;
         }
         vecino[i] = iCenter;
         
@@ -243,7 +246,7 @@ int main(int argc, char** argv) {
     if (METODO_SOL_INI)
        sols = kpp(N, matriz); // kmeans++ 
     else {
-      cout << "Método para calcular solución inicial: k-means++" << endl; 
+      cout << "Método para calcular solución inicial: aleatorio" << endl; 
       srand(time(NULL)); // aleatorio
       loop(K)
         sols.push_back(rand() % N);
@@ -256,7 +259,6 @@ int main(int argc, char** argv) {
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
     dist distorsionActual = calcular_dist_solucion(dataPoints, N, matriz);
     dist distorsionInicial = distorsionActual;
-    dist mejorVecinoDist = 0;
     
     cout << "Solucion inicial: " ;
     loop(K)

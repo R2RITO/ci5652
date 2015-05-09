@@ -9,11 +9,11 @@
 #include <map>
 #include <sys/time.h>
 
-#define NUM_ITER 10 
+#define NUM_ITER 1 
 
 using namespace std;
 
-int main(int argc, char** argv) {
+int main() {
 
     struct timeval diff, startTV, endTV;
     long totalSec = 0;
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     }
     
     cout << endl;
-    printf("time taken = %ld %ld\n", totalSec/NUM_ITER, totalMSec/NUM_ITER);
+    printf("time taken = %ld %ld\n", totalSec, totalMSec);
     
     cout << endl;
 
