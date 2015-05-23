@@ -27,7 +27,7 @@ typedef vector<point> pointArray; // arreglo de puntos
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
 #define K              3 
-#define LIM_ITER       20 
+#define LIM_ITER       50 
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 #define loop(n) for(int i =0; i < n; i++) 
@@ -221,6 +221,40 @@ void random_shuffle(vector<int> &a){
 } // fin de random_shuffle
 
 
+/**
+ * Local Search
+ */
+pair <vector <int>, dist> localSearch(int N, 
+                                      pointArray dataPoints, 
+                                      vector<int> sols, 
+                                      matrizDist matriz)
+{
+// Ejecutar local search 
+    int count;
+    dist distorsionActual = calcular_dist_solucion(dataPoints, N, matriz);
+    for (count = 0; count < LIM_ITER; count++) {
+               //random_shuffle(sols); // knutt shuffle
+
+        pair <vector<int>, dist> pr = calcular_mejor_vecindad(dataPoints, sols, N, matriz);
+        vector<int> mejorVecino = pr.first;
+        dist mejorVecinoDist = pr.second;
+
+        
+        if (mejorVecinoDist < distorsionActual) {
+            sols = mejorVecino;
+             /* Calculamos los centros más cercanos de cada punto */
+            calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
+            distorsionActual = mejorVecinoDist;
+        }
+    }
+    pair< vector<int>, dist > result;
+    result.first = sols; 
+    result.second = distorsionActual;
+    return result;
+
+}
+
+
 /*
  * 
  */
@@ -270,43 +304,24 @@ int main(int argc, char** argv) {
       loop(K)
         sols.push_back(rand() % N);
     }
-       
-    
-    
-    // Generar solucion inicial utilizando metodo k-means++(opcional)
-     
-    calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
-    dist distorsionActual = calcular_dist_solucion(dataPoints, N, matriz);
-    dist distorsionInicial = distorsionActual;
+
+    calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); // calculamos centros mas cercanos
+    dist distInicial = calcular_dist_solucion(dataPoints, N, matriz);
     cout << "Nro Iteraciones en el LS: " << LIM_ITER << endl;
     cout << "Solucion inicial: " ;
     loop(K)
       cout << sols[i] << "; ";
-    cout << endl << "Distorsion inicial: " << distorsionInicial << endl;
+    cout << endl << "Distorsion inicial: " << distInicial << endl;
 
+    pair <vector<int>, dist> pr = localSearch(N, dataPoints, sols, matriz); //aplicamos LocalSearch
+    sols = pr.first;
+    dist distFinal = pr.second;
 
-    // Ejecutar local search 
-    int count;
-    for (count = 0; count < LIM_ITER; count++) {
-        /* Calculamos los centros más cercanos de cada punto */
-        calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
-        //random_shuffle(sols); // knutt shuffle
-
-        pair <vector<int>, dist> pr = calcular_mejor_vecindad(dataPoints, sols, N, matriz);
-        vector<int> mejorVecino = pr.first;
-        dist mejorVecinoDist = pr.second;
-
-        
-        if (mejorVecinoDist < distorsionActual) {
-            sols = mejorVecino;
-            distorsionActual = mejorVecinoDist;
-        }
-    }
-    cout << "Solucion: ";
+    cout << "Solucion Final: ";
     loop(K)
       cout << sols[i] <<  "; " ;
-    cout << endl << "Distorsión Final: " << distorsionActual << endl;
-    cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distorsionInicial-distorsionActual)/distorsionInicial << endl;
+    cout << endl << "Distorsión Final: " << distFinal << endl;
+    cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-distFinal)/distInicial << endl;
 
     return 0;
 }
