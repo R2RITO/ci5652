@@ -26,8 +26,8 @@ typedef vector<point> pointArray; // arreglo de puntos
 
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
-#define K               3 
-#define LIM_ITER        100
+#define K              3 
+#define LIM_ITER       20 
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 #define loop(n) for(int i =0; i < n; i++) 
@@ -47,8 +47,8 @@ dist kmDist(			// interpoint squared distance
     dist distance = 0;
 
     for (d = 0; d < dim; d++) {
-	diff = (p->coords)[d] - (q->coords)[d];
-	distance = KM_SUM(distance, KM_POW(diff));
+      diff = (p->coords)[d] - (q->coords)[d];
+      distance = KM_SUM(distance, KM_POW(diff));
     }
     return distance;
 }
@@ -60,7 +60,7 @@ dist distancia(int i, int j, matrizDist matriz) {
         return matriz[i][j-i-1]; 
     } else if (i == j) {
         return 0;
-    } else {
+      } else {
         return matriz[j][i-j-1];
     }
 }
@@ -76,7 +76,7 @@ void calcular_centros_mas_cercanos(pointArray points, vector<int> centros,  matr
       
     for(int i = 0; i < N; i++ ){
         double min_d = DBL_MAX;
-        for(int j = 0; j < K-1; j++){
+        for(int j = 0; j < K; j++){
             dist dista = distancia(i, centros[j], matriz);
             if(min_d > dista){
                 points[i]->centro = centros[j];
@@ -98,8 +98,7 @@ vector<int> kpp(int N, matrizDist matriz){
     dist minDist, candidato;
     vector<int> sols;
     cout << "Método para calcular solución inicial: k-means++" << endl; 
-    srand(time(NULL));
-
+    
     sols.push_back(rand() % N);
     /* #define loop(n) for(int ii = 0; ii < n; ++ ii)
         Se guarda un mapa de distancias -> indice del punto, en el que 
@@ -154,17 +153,19 @@ dist calcular_dist_solucion(pointArray dataPoints, int N, matrizDist matriz){
 }
 
 
- 
+/**
+ *
+ */
 pair<vector<int>, dist>  calcular_mejor_vecindad(pointArray dataPoints, vector<int> sols, int N, matrizDist matriz){
     int iCenter;
-    bool repetido;
-    vector<int> mejorVecino = sols;
-    srand(time(NULL));
+    bool repetido = false, encontrado_primer_mejor = false;
+    vector<int> vecino;
     double min_d = calcular_dist_solucion(dataPoints, N, matriz);
-    
-    for(int i = 0; i < K; i++){
-        vector<int> vecino;
+    int lim = 0;
+
+    while(!encontrado_primer_mejor and (lim < 35)){
         vecino = sols;
+        int pos_centro = rand() % (K); // elegimos un centro al azar
         while(1){
           repetido = false;
           iCenter = rand() % N;
@@ -175,17 +176,19 @@ pair<vector<int>, dist>  calcular_mejor_vecindad(pointArray dataPoints, vector<i
                 }
           if(!repetido) break;
         }
-        vecino[i] = iCenter;
+        vecino[pos_centro] = iCenter;
         
         calcular_centros_mas_cercanos(dataPoints, vecino, matriz, N);
         double d = calcular_dist_solucion(dataPoints, N, matriz);
+       
         if (d < min_d){
             min_d = d;
-            mejorVecino = vecino;           
+            encontrado_primer_mejor = true;
         }
+        lim++;
     }
     pair< vector<int>, dist > result;
-    result.first = mejorVecino;
+    result.first = (lim == 35)?sols : vecino; 
     result.second = min_d;
     return result;
 }
@@ -200,6 +203,22 @@ int convergencia(dist d1, dist d2) {
     }
 
 }
+
+/**
+ * Función que dado una solución, permuta sus posiciones
+ *
+ */
+void random_shuffle(vector<int> &a){
+  int r, i, temp;
+  
+  for(i = K-1; i > 0; i--){
+    r = rand() % (i+1);
+    temp = a[i];
+    a[i] = a[r];
+    a[r] = temp;
+  }
+
+} // fin de random_shuffle
 
 
 /*
@@ -241,13 +260,13 @@ int main(int argc, char** argv) {
     // Vector de soluciones, posición de cada centro en el arreglo de puntos.
     vector<int> sols;
     sols.clear();
+    srand(time(NULL));
 
     //cálculo solución inicial
     if (METODO_SOL_INI)
        sols = kpp(N, matriz); // kmeans++ 
     else {
       cout << "Método para calcular solución inicial: aleatorio" << endl; 
-      srand(time(NULL)); // aleatorio
       loop(K)
         sols.push_back(rand() % N);
     }
@@ -259,7 +278,7 @@ int main(int argc, char** argv) {
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
     dist distorsionActual = calcular_dist_solucion(dataPoints, N, matriz);
     dist distorsionInicial = distorsionActual;
-    
+    cout << "Nro Iteraciones en el LS: " << LIM_ITER << endl;
     cout << "Solucion inicial: " ;
     loop(K)
       cout << sols[i] << "; ";
@@ -270,22 +289,19 @@ int main(int argc, char** argv) {
     int count;
     for (count = 0; count < LIM_ITER; count++) {
         /* Calculamos los centros más cercanos de cada punto */
-        calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);         
+        calcular_centros_mas_cercanos(dataPoints, sols, matriz, N);
+        //random_shuffle(sols); // knutt shuffle
+
         pair <vector<int>, dist> pr = calcular_mejor_vecindad(dataPoints, sols, N, matriz);
         vector<int> mejorVecino = pr.first;
         dist mejorVecinoDist = pr.second;
 
-        /* if (convergencia(distorsionActual,mejorVecinoDist)){ */
-        /*     break; */
-        /* } */
-
+        
         if (mejorVecinoDist < distorsionActual) {
             sols = mejorVecino;
             distorsionActual = mejorVecinoDist;
         }
     }
-    cout << "Numero iteraciones en el LS: " << count << endl;
-
     cout << "Solucion: ";
     loop(K)
       cout << sols[i] <<  "; " ;
