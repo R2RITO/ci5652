@@ -27,7 +27,7 @@ typedef vector<point> pointArray; // arreglo de puntos
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
 #define K              3 
-#define LIM_ITER       50 
+#define LIM_ITER       3 
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 #define loop(n) for(int i =0; i < n; i++) 
@@ -255,6 +255,74 @@ pair <vector <int>, dist> localSearch(int N,
 }
 
 
+/**
+ * Función que decide si un intercambio de centro está permitido.
+ * Esto es, que el nuevo centro elegido no esté en la lista tabu y
+ * que no esté repetido en la solución actual
+ */
+bool es_cambio_permitido(int c, vector<int> sol, vector<int> tabu){
+  for(vector<int>::iterator it = sol.begin(); it != sol.end(); it++){
+    if ((*it) == c)
+      return false;
+  }
+  for(vector<int>::iterator it = tabu.begin(); it != tabu.end(); it++){
+    if ((*it) == c )
+      return false;
+  }
+
+  return true;
+}
+
+pair< vector<int>, dist> tabuSearch(int N, 
+                                    pointArray dataPoints, 
+                                    vector<int> sols, 
+                                    matrizDist matriz,
+                                    size_t maxTabuSize){
+  vector<int> tabuList, primerMejorVecino;
+  vector<int> aVecino = sols;
+  dist aDist;
+  dist bestDist = calcular_dist_solucion(dataPoints, N, matriz);
+  int c, newc;
+
+  loop(LIM_ITER){
+    primerMejorVecino.clear();
+    while(1){ // buscamos primer mejor vecino
+      c = rand() % K; // elegimos un  centro al "azar"
+      newc = rand() % N; // elegimos un punto al "azar"
+      if (!es_cambio_permitido(newc, aVecino, tabuList)) // chequear si es tabu o repetido 
+        continue;
+      aVecino[c] = newc; // cambiamos el centro
+      calcular_centros_mas_cercanos(dataPoints, aVecino, matriz, N); // recalculamos centros mas cercanos
+      aDist = calcular_dist_solucion(dataPoints, N, matriz); // distorsion de la nueva solucion
+
+      if (aDist < bestDist){
+        primerMejorVecino = aVecino;
+        bestDist = aDist;
+        break; // encontrado mejor Vecino
+      }
+
+      aVecino = sols; 
+    }
+    sols = primerMejorVecino;
+    tabuList.push_back(newc);
+    if(tabuList.size() >= maxTabuSize)
+      tabuList.erase(tabuList.begin());
+
+    cout << "Lista Tabú: "; 
+    for(vector<int>::iterator it = tabuList.begin(); it != tabuList.end(); it++)
+      cout << (*it) << " ";
+    cout << endl;
+
+  }
+  pair< vector<int>, dist> result;
+  result.first = sols;
+  result.second = bestDist;
+  return result;
+}
+
+
+
+
 /*
  * 
  */
@@ -313,7 +381,8 @@ int main(int argc, char** argv) {
       cout << sols[i] << "; ";
     cout << endl << "Distorsion inicial: " << distInicial << endl;
 
-    pair <vector<int>, dist> pr = localSearch(N, dataPoints, sols, matriz); //aplicamos LocalSearch
+    /* pair <vector<int>, dist> pr = localSearch(N, dataPoints, sols, matriz); //aplicamos LocalSearch */
+    pair <vector<int>, dist> pr = tabuSearch(N, dataPoints, sols, matriz, 10); // o aplicamos tabuSearch 
     sols = pr.first;
     dist distFinal = pr.second;
 
