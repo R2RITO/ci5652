@@ -152,6 +152,116 @@ dist calcular_dist_solucion(pointArray dataPoints, int N, matrizDist matriz){
     return res;
 }
 
+void sumarPuntos(vector< vector<coord> > p, point q, int indx) {
+    int dim = q->coords.size();
+
+    for (int i=0; i < dim; i++) {
+        p[indx][i] = p[indx][i] + q->coords[i];
+    }
+
+    return;
+}
+
+/**
+ * Calcula las medias de los clusters (lloyd)
+ * @param dataPoints
+ * @param K
+ * @param sols
+ * @return vector con las medias.
+ */
+vector< vector<coord> > calcularMedias(pointArray dataPoints, vector< vector<coord> > sols, int N) {
+
+    // Inicializar las medias.
+    vector< vector<coord> > vectorMedias;
+    vector<int> numElems;
+
+    for (int i=0; i < K; i++) {
+        vector<coord> comp;
+        coord dim = 0.0;
+        for (int j=0; j < sols[0].size(); j++) {
+            comp.push_back(dim);
+        }
+        vectorMedias.push_back(comp);
+        numElems.push_back(0);
+    }
+
+    for (int i=0; i < N; i++) {
+        sumarPuntos(vectorMedias, dataPoints[i], dataPoints[i]->centro);
+        numElems[dataPoints[i]->centro] += 1;
+    }
+
+    for (int i=0; i < K; i++) {
+        for (int j=0; j<vectorMedias[0].size(); j++) {
+            vectorMedias[i][j] = vectorMedias[i][j] / numElems[i];
+        }
+    }
+
+    return vectorMedias;
+
+}
+
+/**
+ * Calcula el centro correspondiente para cada punto, retorna la distorsión
+ * total.
+*/
+
+dist calcularCentrosCercanosLloyd(pointArray dataPoints, vector< vector<coord> > sols, int N) {
+
+    // Crear point para poder utilizar la funcion kmDist.
+    pointArray solsP;    
+    for (int h = 0; h < K; h++) {
+        point p = new point_t();
+        p->coords = sols[h];
+        p->centro = 0;
+        solsP.push_back(p);
+    }
+
+    int dim = sols[0].size();
+    dist distorsionTotal = 0.0;
+
+    for(int i = 0; i < N; i++ ){
+        double min_d = DBL_MAX;
+        for(int j = 0; j < K; j++){
+            dist dista = kmDist(dim, dataPoints[i], solsP[j]);
+            if(min_d > dista){
+                dataPoints[i]->centro = j;
+                min_d = dista;
+            }
+        }
+        distorsionTotal += min_d;
+    }
+
+    return distorsionTotal;
+}
+
+/**
+ * Calcula una solucion utilizando el algoritmo de Lloyd
+ * @param dataPoints
+ * @param N
+ * @param matriz
+ * @return vector con la solucion, distorsion de la solucion.
+ */
+pair<vector< vector<coord> >, double> lloyd(vector< vector<coord> > solIni, pointArray dataPoints, int N) {
+
+    dist distActual;
+    vector< vector<coord> > sols = solIni;
+
+    for (int count = 0; count < LIM_ITER; count++) {
+        // Calcular nuevos centroides.
+        sols = calcularMedias(dataPoints, sols, N);
+
+        // Reasignar cada punto.
+        distActual = calcularCentrosCercanosLloyd(dataPoints, sols, N);        
+
+    }
+
+    pair< vector< vector<coord> >, dist > result;
+    result.first = sols; 
+    result.second = distActual;
+    return result;
+
+}
+
 
 /**
  *
