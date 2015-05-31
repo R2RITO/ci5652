@@ -26,8 +26,8 @@ typedef vector<point> pointArray; // arreglo de puntos
 
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
-#define K              3 
-#define LIM_ITER       3 
+#define K              3
+#define LIM_ITER       25 
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 #define loop(n) for(int i =0; i < n; i++) 
@@ -65,7 +65,7 @@ dist distancia(int i, int j, matrizDist matriz) {
     }
 }
 
-/*
+/*0.0.0.0
  * Dado un punto, calcula su centro más cercano.
  * @param p arregls de puntos
  *        centros vector solucion
@@ -273,6 +273,20 @@ bool es_cambio_permitido(int c, vector<int> sol, vector<int> tabu){
   return true;
 }
 
+/**
+ * Agrega un centro a la lista tabu
+ */
+void prohibir_centro(size_t limTabu, vector<int> &tabu, int c){
+  if(tabu.size() >= limTabu)
+      tabu.erase(tabu.begin());
+
+  tabu.push_back(c);
+}
+
+/**
+ * Tabú Search
+ *
+ */
 pair< vector<int>, dist> tabuSearch(int N, 
                                     pointArray dataPoints, 
                                     vector<int> sols, 
@@ -282,37 +296,45 @@ pair< vector<int>, dist> tabuSearch(int N,
   vector<int> aVecino = sols;
   dist aDist;
   dist bestDist = calcular_dist_solucion(dataPoints, N, matriz);
-  int c, newc;
+  int c, newc, oldc, lim = 0;
 
   loop(LIM_ITER){
     primerMejorVecino.clear();
-    while(1){ // buscamos primer mejor vecino
+    for(lim = 0; lim < N/8; lim++){ // buscamos primer mejor vecino
       c = rand() % K; // elegimos un  centro al "azar"
       newc = rand() % N; // elegimos un punto al "azar"
       if (!es_cambio_permitido(newc, aVecino, tabuList)) // chequear si es tabu o repetido 
         continue;
+      oldc = aVecino[c];
       aVecino[c] = newc; // cambiamos el centro
       calcular_centros_mas_cercanos(dataPoints, aVecino, matriz, N); // recalculamos centros mas cercanos
       aDist = calcular_dist_solucion(dataPoints, N, matriz); // distorsion de la nueva solucion
 
-      if (aDist < bestDist){
+      if (aDist < bestDist)
+      {
         primerMejorVecino = aVecino;
         bestDist = aDist;
+        prohibir_centro(maxTabuSize, tabuList, oldc);
         break; // encontrado mejor Vecino
+      } 
+      else 
+      {
+        prohibir_centro(maxTabuSize, tabuList, newc);
       }
 
-      aVecino = sols; 
+      aVecino = sols;
+
     }
-    sols = primerMejorVecino;
-    tabuList.push_back(newc);
+
+    if (lim != N/8){
+     sols = primerMejorVecino;
+    }
+
+    
     if(tabuList.size() >= maxTabuSize)
       tabuList.erase(tabuList.begin());
-
-    cout << "Lista Tabú: "; 
-    for(vector<int>::iterator it = tabuList.begin(); it != tabuList.end(); it++)
-      cout << (*it) << " ";
-    cout << endl;
-
+    lim = 0;
+    
   }
   pair< vector<int>, dist> result;
   result.first = sols;
@@ -320,7 +342,48 @@ pair< vector<int>, dist> tabuSearch(int N,
   return result;
 }
 
+void imprimir_asignacion_centros(int N, pointArray dataPoints){
+  cout << "Asignación de centros: " << endl;
+  loop(N)
+    cout << "Punto #" << i << " -> " << dataPoints[i]->centro << endl;
+  
+}
 
+dist dbIndex(int N, pointArray dataPoints, vector<int> centers, matrizDist m){
+  vector<dist> S; // distorsion de cada cluster
+  vector<dist> D;
+  vector<int> counters; // para guardar el tamaño de cada cluster
+  map<int, int> centIndex; // mapea posicion de centros dentro del vector de solucion
+  loop(K){ 
+    centIndex[centers[i]] = i; 
+    S.push_back(0.0); 
+    counters.push_back(0);
+    D.push_back(0.0);
+  }
+
+  loop(N){ // para cada centro, sumamos la distancias de sus puntos mas cercanos
+    int centro = dataPoints[i]->centro;
+    int index = centIndex[centro];
+    S[index] = S[index] + distancia(i, centro, m); 
+    counters[index] = counters[index] + 1; // aumentamos los contadores de tamaño
+  }
+  
+  loop(K)
+    S[i] = S[i] / counters[i]; // dividimos entre tamaño de cluster
+
+  for(int i = 0; i < K-1; i++){
+    for(int j = i+1; j < K;  j++){
+      D[i] = max(D[i], (S[i] + S[j]) / distancia(centers[i], centers[j], m));
+    }
+  }
+
+  dist DB = 0.0;
+  loop(N)
+    DB += D[i];
+
+  return DB/N;
+  
+}
 
 
 /*
@@ -368,29 +431,39 @@ int main(int argc, char** argv) {
     if (METODO_SOL_INI)
        sols = kpp(N, matriz); // kmeans++ 
     else {
-      cout << "Método para calcular solución inicial: aleatorio" << endl; 
+      /* cout << "Método para calcular solución inicial: aleatorio" << endl; */ 
       loop(K)
         sols.push_back(rand() % N);
     }
 
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); // calculamos centros mas cercanos
     dist distInicial = calcular_dist_solucion(dataPoints, N, matriz);
-    cout << "Nro Iteraciones en el LS: " << LIM_ITER << endl;
-    cout << "Solucion inicial: " ;
-    loop(K)
-      cout << sols[i] << "; ";
-    cout << endl << "Distorsion inicial: " << distInicial << endl;
+    /* cout << "Nro Iteraciones en el LS: " << LIM_ITER << endl; */
+    /* cout << "Solucion inicial: " ; */
+    /* loop(K) */
+    /*   cout << sols[i] << "; "; */
+    /* cout << endl << "Distorsion inicial: " << distInicial << endl; */
+    /* cout << "Davis Goulding Index de la solucion inicial: " << dbIndex(N, dataPoints, sols, matriz) << endl; */
+    dist dbiInicial = dbIndex(N, dataPoints, sols, matriz); 
 
     /* pair <vector<int>, dist> pr = localSearch(N, dataPoints, sols, matriz); //aplicamos LocalSearch */
-    pair <vector<int>, dist> pr = tabuSearch(N, dataPoints, sols, matriz, 10); // o aplicamos tabuSearch 
+    pair <vector<int>, dist> pr = tabuSearch(N, dataPoints, sols, matriz, N/4); // o aplicamos tabuSearch 
     sols = pr.first;
     dist distFinal = pr.second;
 
-    cout << "Solucion Final: ";
-    loop(K)
-      cout << sols[i] <<  "; " ;
-    cout << endl << "Distorsión Final: " << distFinal << endl;
-    cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-distFinal)/distInicial << endl;
+    /* cout << "Solucion Final: "; */
+    /* loop(K) */
+    /*   cout << sols[i] <<  "; " ; */
+    /* cout << endl << "Distorsión Final: " << distFinal << endl; */
+    /* cout << "Davis Goulding Index de la solucion final: " << dbIndex(N, dataPoints, sols, matriz) << endl; */
+    /* cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-distFinal)/distInicial << endl; */
+    /* imprimir_asignacion_centros(N, dataPoints); */
+
+    calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); 
+
+    dist dbiFinal =  dbIndex(N, dataPoints, sols, matriz);
+    cout << distFinal << " " << (distInicial-distFinal)/distInicial << " ";
+    cout << dbiFinal << " " << (dbiInicial-dbiFinal) / dbiInicial << endl; 
 
     return 0;
 }
