@@ -9,7 +9,7 @@
 #include <map>
 #include <sys/time.h>
 
-#define NUM_ITER 1
+#define NUM_ITER 15
 
 using namespace std;
 
@@ -38,12 +38,13 @@ int main(int argc, char* argv[]) {
         timersub(&endTV, &startTV, &diff);
 
         totalSec += diff.tv_sec;
+        cout << totalMSec << endl;
         totalMSec += diff.tv_usec;
     }
     
-    cout << endl;
-    printf("time taken = %ld %ld\n", totalSec, totalMSec);
+    cout << totalMSec << endl;
+    //printf("time taken = %ld %ld\n", totalSec, totalMSec);
     
-    cout << endl;
+    //cout << endl;
 
 }

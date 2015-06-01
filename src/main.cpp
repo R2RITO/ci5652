@@ -30,6 +30,7 @@ typedef vector<point> pointArray; // arreglo de puntos
 #define LIM_ITER       50 
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
+#define DBL_MIN        -DBL_MAX
 #define loop(n) for(int i =0; i < n; i++) 
 #define METODO_SOL_INI 1 // 0 aleatorio, 1 kmeans++
 
@@ -97,7 +98,7 @@ vector<int> kpp(int N, matrizDist matriz){
     double pesoTotal = 0;  
     dist minDist, candidato;
     vector<int> sols;
-    cout << "Método para calcular solución inicial: k-means++" << endl; 
+    //cout << "Método para calcular solución inicial: k-means++" << endl; 
     
     sols.push_back(rand() % N);
     /* #define loop(n) for(int ii = 0; ii < n; ++ ii)
@@ -219,7 +220,7 @@ dist calcularCentrosCercanosLloyd(pointArray dataPoints, vector< vector<coord> >
     int dim = sols[0].size();
     dist distorsionTotal = 0.0;
 
-    cout << "Centro de 0 antes: " << dataPoints[0]->centro << endl;
+    //cout << "Centro de 0 antes: " << dataPoints[0]->centro << endl;
 
     for(int i = 0; i < N; i++ ){
         double min_d = DBL_MAX;
@@ -233,7 +234,7 @@ dist calcularCentrosCercanosLloyd(pointArray dataPoints, vector< vector<coord> >
         distorsionTotal += min_d;
     }
 
-    cout << "Centro de 0 después: " << dataPoints[0]->centro << endl;
+    //cout << "Centro de 0 después: " << dataPoints[0]->centro << endl;
 
     return distorsionTotal;
 }
@@ -256,7 +257,7 @@ pair<vector< vector<coord> >, double> lloyd(vector< vector<coord> > solIni, poin
 
         // Reasignar cada punto.
         distActual = calcularCentrosCercanosLloyd(dataPoints, sols, N);
-        cout << "Dist actual de lloyd: " << distActual << endl;        
+        //cout << "Dist actual de lloyd: " << distActual << endl;        
 
     }
 
@@ -391,6 +392,140 @@ pair <vector <int>, dist> localSearch(int N,
 }
 
 
+/* 
+################################################################
+################################################################
+################################################################
+            Seccion de metaheuristica GRASP
+################################################################
+################################################################
+################################################################
+*/
+
+/* Construye una solucion candidata utilizando la estrategia de grasp */
+
+vector<int> construirSolGrasp(double alpha, matrizDist matriz, int N) {
+
+    // Seleccionar el primer elemento aleatorio
+    vector<int> sols;    
+    sols.push_back(rand() % N);
+
+    pair<int, double> cMin, cMax, actual;
+    vector< pair<int, double> > RCL;
+    dist minDist, maxRCL, minRCL, distCandidato;
+
+    for (int i = 1; i < K; i++) {
+
+        /* Reiniciar RCL. maximo y minimo */
+        RCL.clear();
+        cMax.first = -1;
+        cMax.second = DBL_MIN;
+        cMin.first = -1;
+        cMin.second = DBL_MAX;
+    
+        /*  Calcular la distancia de cada elemento a los centroides, guardarlo
+            en el RCL.
+        */
+        
+        for (int j=0; j < N; j++) {
+
+            minDist = DBL_MAX;
+            // Obtener la distancia entre el punto j y su centro mas cercano.
+            for (vector<int>::iterator it = sols.begin(); it != sols.end(); it++) {
+                distCandidato = distancia((*it),j,matriz);
+                minDist = (distCandidato < minDist) ? distCandidato : minDist;
+            }
+
+            // Si la distancia es 0, quiere decir que es el mismo punto, ignorar.
+            if (minDist > 0) {
+                actual.first = j;
+                actual.second = minDist;
+
+                /* Actualizar el minimo y el maximo */
+                if (minDist < cMin.second) {
+                    cMin.first = j;
+                    cMin.second = minDist;
+                }
+
+                if (minDist > cMax.second) {
+                    cMax.first = j;
+                    cMax.second = minDist;
+                }
+
+                /* Guardar el elemento en el RCL */
+                RCL.push_back(actual);
+            }
+        }
+
+        /* Seleccionar un elemento aleatorio del RCL */
+        maxRCL = cMax.second;
+        minRCL = cMax.second - alpha*(cMax.second - cMin.second);
+        int centro;
+        bool encontrado = false;
+
+        /* Seleccionar un elemento aleatorio del RCL, si cumple con
+           la condicion de bondad (su distancia al centroide mas cercano
+           es mayor a minRCL, entonces sera el centro a agregar.
+        */
+
+        while (!encontrado) {
+            centro = rand() % (N - i);
+            encontrado = (RCL[centro].second > minRCL) ? true : false;
+        }
+
+        sols.push_back(centro);
+
+    }
+
+    return sols;
+
+}
+
+
+pair<vector<int>, dist> grasp(matrizDist matriz, int N, pointArray dataPoints, int lim) {
+
+    pair<vector<int>, dist> solCandidata, optimo;
+    optimo.second = DBL_MAX;
+
+    double alpha;    
+    
+    // Crear el vector de probabilidades para alpha
+    map<double, double> valoresAlpha;
+    double acc = 0.1;
+    for (int j = 0; j < 9; j++) {
+        valoresAlpha[acc] = acc;
+        acc += 0.1;
+    }
+     
+
+    for (int i = 0; i < lim; i++) {
+
+        // Seleccion de alpha.
+        alpha = valoresAlpha.upper_bound(rand() / RAND_MAX)->second;
+
+        // Fase de construccion
+        vector<int> candidato = construirSolGrasp(alpha, matriz, N);
+
+        // Fase de mejora
+        calcular_centros_mas_cercanos(dataPoints, candidato, matriz, N);
+        solCandidata = localSearch(N,dataPoints,candidato,matriz);
+
+        // Actualizar optimo
+        if (solCandidata.second < optimo.second) {
+            optimo.first = solCandidata.first;
+            optimo.second = solCandidata.second;
+        }  
+
+        //cout << "Voy por la i: " << i << endl; 
+
+    }
+
+    return optimo;
+
+}
+
+/* Fin de GRASP */
+
 /*
  * 
  */
@@ -445,12 +580,14 @@ int main(int argc, char** argv) {
 
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); // calculamos centros mas cercanos
     dist distInicial = calcular_dist_solucion(dataPoints, N, matriz);
+    /*
     cout << "Nro Iteraciones en el LS: " << LIM_ITER << endl;
     cout << "Solucion inicial: " ;
     loop(K)
       cout << sols[i] << "; ";
     cout << endl << "Distorsion inicial: " << distInicial << endl;
 
+    
     pair <vector<int>, dist> pr = localSearch(N, dataPoints, sols, matriz); //aplicamos LocalSearch
     sols = pr.first;
     dist distFinal = pr.second;
@@ -461,9 +598,17 @@ int main(int argc, char** argv) {
     cout << endl << "Distorsión Final: " << distFinal << endl;
     cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-distFinal)/distInicial << endl;
 
+
+
     pair< vector< vector<coord> >, dist > resultLloyd = solucionLloyd(dataPoints, N, matriz, solsInit);
     dist lloydFinal = resultLloyd.second;
     cout << endl << "Distorsión Final de Lloyd: " << lloydFinal << endl;
+    */
+
+    pair <vector<int>, dist> gp = grasp(matriz, N, dataPoints, 6);
+    //cout << "Distorsión final de GRASP: " << gp.second << endl;
+    //cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-gp.second)/distInicial << endl;
+    cout << gp.second << " " << (distInicial-gp.second)/distInicial << " ";
 
     return 0;
 }
