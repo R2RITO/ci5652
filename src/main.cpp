@@ -26,8 +26,8 @@ typedef vector<point> pointArray; // arreglo de puntos
 
 #define KM_SUM(x,y)		((x) + (y))
 #define KM_POW(v)		((v)*(v))
-#define K              3
-#define LIM_ITER       25 
+#define K              3 
+#define LIM_ITER       10 
 #define EPSILON         0.0000005
 #define DBL_MAX         1.7976931348623158e+308
 #define loop(n) for(int i =0; i < n; i++) 
@@ -52,6 +52,14 @@ dist kmDist(			// interpoint squared distance
     }
     return distance;
 }
+
+void imprimir_asignacion_centros(int N, pointArray dataPoints){
+  cout << "Asignación de centros: " << endl;
+  loop(N)
+    cout << "Punto #" << i << " -> " << dataPoints[i]->centro << endl;
+  
+}
+
 
 
 /* Busca en la matriz la distancia entre dos puntos */
@@ -150,6 +158,35 @@ dist calcular_dist_solucion(pointArray dataPoints, int N, matrizDist matriz){
         res += distancia(i, dataPoints[i]->centro, matriz);
     }
     return res;
+}
+
+void cambiar_centro(int N,
+                    pointArray dataPoints,
+                    vector<int> &cent,
+                    matrizDist m,
+                    int newc, int oldc,
+                    int pos
+                    )
+{
+  cent[pos] = newc;
+  loop(N){
+    if (dataPoints[i]->centro == oldc){
+      dist min_d = DBL_MAX;
+      for(int j = 0; j < K; j++)
+      {
+          dist dista = distancia(i, cent[j], m);
+          if(min_d > dista)
+          {
+            dataPoints[i]->centro = cent[j];
+            min_d = dista;
+          }
+      }
+    } else {
+      if(distancia(i, dataPoints[i]->centro, m) >= distancia(i, newc, m))
+        dataPoints[i]->centro = newc;
+    }
+  }
+
 }
 
 
@@ -300,14 +337,13 @@ pair< vector<int>, dist> tabuSearch(int N,
 
   loop(LIM_ITER){
     primerMejorVecino.clear();
-    for(lim = 0; lim < N/8; lim++){ // buscamos primer mejor vecino
+    for(lim = 0; lim < N/20; lim++){ // buscamos primer mejor vecino
       c = rand() % K; // elegimos un  centro al "azar"
       newc = rand() % N; // elegimos un punto al "azar"
       if (!es_cambio_permitido(newc, aVecino, tabuList)) // chequear si es tabu o repetido 
         continue;
       oldc = aVecino[c];
-      aVecino[c] = newc; // cambiamos el centro
-      calcular_centros_mas_cercanos(dataPoints, aVecino, matriz, N); // recalculamos centros mas cercanos
+      cambiar_centro(N, dataPoints, aVecino, matriz, newc, oldc, c); // recalculamos centros mas cercanos
       aDist = calcular_dist_solucion(dataPoints, N, matriz); // distorsion de la nueva solucion
 
       if (aDist < bestDist)
@@ -320,19 +356,19 @@ pair< vector<int>, dist> tabuSearch(int N,
       else 
       {
         prohibir_centro(maxTabuSize, tabuList, newc);
+        cambiar_centro(N, dataPoints, aVecino, matriz, oldc, newc, c); 
       }
 
       aVecino = sols;
 
     }
 
-    if (lim != N/8){
-     sols = primerMejorVecino;
+    if (lim != N/20){
+      sols = primerMejorVecino;
+    } else {
+      /* calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); */
     }
 
-    
-    if(tabuList.size() >= maxTabuSize)
-      tabuList.erase(tabuList.begin());
     lim = 0;
     
   }
@@ -342,12 +378,6 @@ pair< vector<int>, dist> tabuSearch(int N,
   return result;
 }
 
-void imprimir_asignacion_centros(int N, pointArray dataPoints){
-  cout << "Asignación de centros: " << endl;
-  loop(N)
-    cout << "Punto #" << i << " -> " << dataPoints[i]->centro << endl;
-  
-}
 
 dist dbIndex(int N, pointArray dataPoints, vector<int> centers, matrizDist m){
   vector<dist> S; // distorsion de cada cluster
@@ -457,10 +487,9 @@ int main(int argc, char** argv) {
     /* cout << endl << "Distorsión Final: " << distFinal << endl; */
     /* cout << "Davis Goulding Index de la solucion final: " << dbIndex(N, dataPoints, sols, matriz) << endl; */
     /* cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-distFinal)/distInicial << endl; */
-    /* imprimir_asignacion_centros(N, dataPoints); */
-
+   
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); 
-
+    
     dist dbiFinal =  dbIndex(N, dataPoints, sols, matriz);
     cout << distFinal << " " << (distInicial-distFinal)/distInicial << " ";
     cout << dbiFinal << " " << (dbiInicial-dbiFinal) / dbiInicial << endl; 
