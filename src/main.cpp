@@ -32,7 +32,7 @@ typedef vector<point> pointArray; // arreglo de puntos
 #define DBL_MAX         1.7976931348623158e+308
 #define DBL_MIN        -DBL_MAX
 #define loop(n) for(int i =0; i < n; i++) 
-#define METODO_SOL_INI 1 // 0 aleatorio, 1 kmeans++
+#define METODO_SOL_INI 0 // 0 aleatorio, 1 kmeans++
 
 /* 
  * Calcula la distancia euclideana de 2 puntos
@@ -776,7 +776,7 @@ int main(int argc, char** argv) {
     pair <vector<int>, dist> gp = grasp(matriz, N, dataPoints, 6);
     //cout << "Distorsión final de GRASP: " << gp.second << endl;
     //cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-gp.second)/distInicial << endl;
-    cout << gp.second << " " << (distInicial-gp.second)/distInicial << endl;
+    cout << gp.second << " " << (distInicial-gp.second)/distInicial << " ";
 
     return 0;
 }

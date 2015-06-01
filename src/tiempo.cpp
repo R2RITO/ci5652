@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
         timersub(&endTV, &startTV, &diff);
 
         totalSec += diff.tv_sec;
-        //cout << diff.tv_usec << endl;
+        cout << diff.tv_sec << "." << diff.tv_usec << endl;
         totalMSec += diff.tv_usec;
     }
     
