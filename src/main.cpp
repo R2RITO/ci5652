@@ -748,9 +748,9 @@ int main(int argc, char** argv) {
     dist dbiInicial = dbIndex(N, dataPoints, sols, matriz); 
 
     /* pair <vector<int>, dist> pr = localSearch(N, dataPoints, sols, matriz); //aplicamos LocalSearch */
-    pair <vector<int>, dist> pr = tabuSearch(N, dataPoints, sols, matriz, N/4); // o aplicamos tabuSearch 
+    /*pair <vector<int>, dist> pr = tabuSearch(N, dataPoints, sols, matriz, N/4); // o aplicamos tabuSearch 
     sols = pr.first;
-    dist distFinal = pr.second;
+    dist distFinal = pr.second;*/
 
     /* cout << "Solucion Final: "; */
     /* loop(K) */
@@ -759,12 +759,13 @@ int main(int argc, char** argv) {
     /* cout << "Davis Goulding Index de la solucion final: " << dbIndex(N, dataPoints, sols, matriz) << endl; */
     /* cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-distFinal)/distInicial << endl; */
    
+    /*
     calcular_centros_mas_cercanos(dataPoints, sols, matriz, N); 
     
     dist dbiFinal =  dbIndex(N, dataPoints, sols, matriz);
     cout << distFinal << " " << (distInicial-distFinal)/distInicial << " ";
     cout << dbiFinal << " " << (dbiInicial-dbiFinal) / dbiInicial << endl; 
-
+    */
 
     /*
     pair< vector< vector<coord> >, dist > resultLloyd = solucionLloyd(dataPoints, N, matriz, solsInit);
@@ -775,7 +776,7 @@ int main(int argc, char** argv) {
     pair <vector<int>, dist> gp = grasp(matriz, N, dataPoints, 6);
     //cout << "Distorsión final de GRASP: " << gp.second << endl;
     //cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-gp.second)/distInicial << endl;
-    cout << gp.second << " " << (distInicial-gp.second)/distInicial << " ";
+    cout << gp.second << " " << (distInicial-gp.second)/distInicial << endl;
 
     return 0;
 }

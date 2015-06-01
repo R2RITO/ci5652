@@ -38,11 +38,11 @@ int main(int argc, char* argv[]) {
         timersub(&endTV, &startTV, &diff);
 
         totalSec += diff.tv_sec;
-        cout << totalMSec << endl;
+        //cout << diff.tv_usec << endl;
         totalMSec += diff.tv_usec;
     }
     
-    cout << totalMSec << endl;
+    //cout << totalMSec << endl;
     //printf("time taken = %ld %ld\n", totalSec, totalMSec);
     
     //cout << endl;
