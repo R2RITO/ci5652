@@ -15,6 +15,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <map>
+#include <math.h> 
 
 using namespace std;
 
@@ -33,6 +34,11 @@ typedef vector<point> pointArray; // arreglo de puntos
 #define DBL_MIN        -DBL_MAX
 #define loop(n) for(int i =0; i < n; i++) 
 #define METODO_SOL_INI 0 // 0 aleatorio, 1 kmeans++
+#define TAM_POBLACION       16
+#define MAX_GENERACIONES    15
+#define PROB_CRUCE          0.4
+#define PROB_MUTACION       0.12
+#define TAM_TORNEO          3
 
 /* 
  * Calcula la distancia euclideana de 2 puntos
@@ -685,6 +691,168 @@ dist dbIndex(int N, pointArray dataPoints, vector<int> centers, matrizDist m){
   
 }
 
+/******************************************
+**                                       **
+**              Genetico                 **
+**                                       **
+******************************************/ 
+
+double calcularDistorsionGenetico(pointArray points, vector<int> centros,  matrizDist matriz, int N) {
+
+    double disTotal = 0.0;
+
+    for(int i = 0; i < N; i++ ){
+        dist min_d = DBL_MAX;
+        dist dista;
+        for(int j = 0; j < K; j++){
+            dista = distancia(i, centros[j], matriz);
+            min_d = (dista < min_d) ? dista : min_d;
+        }
+
+        disTotal += min_d;
+    }
+
+    return disTotal;
+}
+
+int seleccionTorneo(vector< vector<int> > pob, matrizDist matriz, pointArray dataPoints, int T, int N) {
+
+    // Generar los "contendientes" del torneo
+    // El par contiene el indice de la solucion de la poblacion y su distorsion
+    pair<int, double> distorsionMax, distorsionActual;
+    distorsionMax.second = DBL_MAX;
+    int contendiente;
+
+    for (int i = 0; i < T; i++) {
+
+        contendiente = rand() % TAM_POBLACION;
+        distorsionActual.first = contendiente;
+        distorsionActual.second = calcularDistorsionGenetico(dataPoints, pob[contendiente], matriz, N);
+        distorsionMax = (distorsionActual.second < distorsionMax.second) ? distorsionActual : distorsionMax;
+
+    }
+
+    return distorsionMax.first;
+}
+
+pair< vector<int>, double > genetico_generacional(matrizDist matriz, int N, pointArray dataPoints) {
+	
+    // Mapa de probabilidades de cruce, fijo para todas las iteraciones.
+    map< double, int > mapCruces;
+    vector<int> sol1 (K,0);
+    vector<int> sol2 (K,0);
+    vector< vector<int> > nuevaPob;
+    double acc = 0.0;
+    int padA, padB;
+    double rnd, aux, minDist, distAct;
+    vector<int> mascara (K,0);
+    vector<int> mutacion (K,0);
+    vector<int> solIni, cruzandos;
+
+    vector< vector<int> > poblacion;
+
+    for ( int s = 0; s < TAM_POBLACION; s++) {
+        acc += PROB_CRUCE;
+        mapCruces[acc] = s;
+
+        // Seccion para generar poblacion inicial
+        solIni.clear();
+        for (int sIndx = 0; sIndx < K; sIndx++) {
+            solIni.push_back(rand() % N);
+        }
+
+        poblacion.push_back(solIni);
+
+    }
+
+    // Inicio del algoritmo
+
+    for( int numGens = 0; numGens < MAX_GENERACIONES; numGens++ ) {
+
+        // Seleccionar
+        // Se utiliza la estrategia de torneo.
+        // O(n*k*tamTorneo) para cada padre. Esto ejecuta pob veces.
+
+        // cruzandos contiene los indices de las soluciones en la poblacion.
+        cruzandos.clear();
+
+        for ( int pad = 0; pad < TAM_POBLACION; pad++ ) {
+            cruzandos.push_back(seleccionTorneo(poblacion, matriz, dataPoints, TAM_TORNEO, N));
+        }
+
+        // Cruzar
+
+        // Generar la máscara que servirá para el cruce uniforme.
+        for ( int i = 0; i < K; i++ ) {
+            rnd = ((double) rand() / RAND_MAX);
+            mascara[i] = (rnd < 0.5) ? 0xFFFF : 0x0000;
+            mutacion[i] = (rnd < 0.35) ? 0xFFFF : 0x0000;
+        }
+
+        nuevaPob.clear();
+
+        for ( int i = 0; i < TAM_POBLACION / 2; i++ ) {
+
+            // Selecciono dos padres aleatorios para cruzar
+            rnd = ((double) rand() / RAND_MAX);
+            padA = mapCruces.upper_bound(rnd*acc)->second;
+
+            rnd = ((double) rand() / RAND_MAX);
+            padB = mapCruces.upper_bound(rnd*acc)->second;
+
+            // Cruzo y genero dos nuevas soluciones, que reemplazan a sus padres.
+            // Iterar para aplicar las máscaras a cada componente de las soluciones.
+
+            for (int h = 0; h < K; h++ ) {
+                sol1[h] = (poblacion[cruzandos[i]][h] & mascara[h]) + (poblacion[cruzandos[i + (TAM_POBLACION / 2)]][h] & ~mascara[h]);
+                sol2[h] = (poblacion[cruzandos[i]][h] & ~mascara[h]) + (poblacion[cruzandos[i + (TAM_POBLACION / 2)]][h] & mascara[h]);
+            }
+
+            nuevaPob.push_back(sol1);
+            nuevaPob.push_back(sol2);
+            
+        }
+
+        // Mutar
+        // Elijo el numero de sols a mutar, para cada una selecciono una sol
+        // aleatoria y con prob 0.35 muto sus componentes a otra aleatoria.
+        for ( int nmut = 0; nmut < TAM_POBLACION * PROB_MUTACION; nmut++ ) {
+            rnd = (rand() % TAM_POBLACION);
+            
+            for ( int mut = 0; mut < K; mut++ ) {
+                aux = ((double) rand() / RAND_MAX);
+                sol1[mut] = (aux < 0.35) ? floor(aux * (N-1)) : nuevaPob[rnd][mut];                         
+            }
+
+            nuevaPob[rnd] = sol1;
+        }
+
+        // Aumentar probabilidad de mutacion
+        // Disminuir probabilidad de cruce
+
+        poblacion = nuevaPob;
+    }
+
+    pair< vector<int>, double > mejorSol;
+    mejorSol.second = DBL_MAX;
+
+    for (int m = 0; m < TAM_POBLACION; m++ ) {
+
+        distAct = calcularDistorsionGenetico(dataPoints, poblacion[m], matriz, N);
+        
+        if (distAct < mejorSol.second) {
+            mejorSol.first = poblacion[m];
+            mejorSol.second = distAct;
+        } 
+    }
+
+    return mejorSol;
+
+
+}
+
+/* Fin de genetico */
+
 /*
  * 
  */
@@ -773,10 +941,18 @@ int main(int argc, char** argv) {
     cout << endl << "Distorsión Final de Lloyd: " << lloydFinal << endl;
     */
 
+    /*
     pair <vector<int>, dist> gp = grasp(matriz, N, dataPoints, 6);
     //cout << "Distorsión final de GRASP: " << gp.second << endl;
     //cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-gp.second)/distInicial << endl;
     cout << gp.second << " " << (distInicial-gp.second)/distInicial << " ";
+    */
+
+    pair <vector<int>, dist> gen = genetico_generacional(matriz, N, dataPoints);
+    //cout << "Distorsión final de Genético: " << gen.second << endl;
+    cout << gen.second << " ";
+    //cout << "Porcentaje de mejora con respecto a la sol inicial: " << (distInicial-gp.second)/distInicial << endl;
+    //cout << gp.second << " " << (distInicial-gp.second)/distInicial << " ";
 
     return 0;
 }
